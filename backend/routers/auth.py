@@ -202,21 +202,114 @@ class SMTP_SSL_IPv4(smtplib.SMTP_SSL):
 
 def _enviar_email_verificacao(email_destino: str, nome: str, codigo: str) -> bool:
     """
-    Envia o e-mail de verificação usando SMTP com conexão forçada via IPv4.
+    Envia o e-mail de verificação real via HTTP API (Resend / Brevo) ou SMTP com conexão IPv4.
     Retorna True se enviou com sucesso, False caso contrário.
     """
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
+    import json
+    import urllib.request
 
     email_remetente = os.getenv("EMAIL_REMETENTE", "").strip()
     email_senha = os.getenv("EMAIL_SENHA", "").replace(" ", "").strip()
     smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
+    brevo_api_key = os.getenv("BREVO_API_KEY", "").strip()
+
+    html_body = f"""
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+    <body style="margin:0;padding:0;background:#f0faf5;font-family:'Helvetica Neue',Arial,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0faf5;padding:40px 0;">
+        <tr><td align="center">
+          <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.08);">
+            <tr>
+              <td style="background:linear-gradient(135deg,#0d6e4e,#10b981);padding:36px 40px;text-align:center;">
+                <h1 style="color:#ffffff;margin:0;font-size:28px;font-weight:900;letter-spacing:-1px;">CORRE<span style="color:#6ee7b7">NEM</span></h1>
+                <p style="color:#a7f3d0;margin:6px 0 0;font-size:13px;font-weight:500;">Plataforma de Correção de Redação ENEM</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:40px 40px 32px;">
+                <p style="margin:0 0 8px;font-size:14px;color:#64748b;font-weight:600;">Olá, {nome}! 👋</p>
+                <h2 style="margin:0 0 20px;font-size:22px;color:#0f172a;font-weight:900;line-height:1.3;">
+                  Confirme seu endereço<br/>de e-mail para continuar
+                </h2>
+                <p style="margin:0 0 28px;font-size:14px;color:#475569;line-height:1.6;">
+                  Estamos quase lá! Insira o código abaixo na tela de verificação do CORRENEM para ativar sua conta.
+                </p>
+                <div style="background:#f0fdf4;border:2px dashed #34d399;border-radius:16px;padding:28px;text-align:center;margin-bottom:28px;">
+                  <p style="margin:0 0 8px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:#059669;">Seu código de verificação</p>
+                  <p style="margin:0;font-size:44px;font-weight:900;letter-spacing:12px;color:#0f172a;font-family:'Courier New',monospace;">{codigo}</p>
+                  <p style="margin:12px 0 0;font-size:11px;color:#94a3b8;font-weight:500;">⏱ Válido por 10 minutos</p>
+                </div>
+                <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.6;">
+                  Se você não criou uma conta no CORRENEM, ignore este e-mail com segurança.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 40px 32px;border-top:1px solid #f1f5f9;text-align:center;">
+                <p style="margin:0;font-size:11px;color:#cbd5e1;">© 2026 CORRENEM · Todos os direitos reservados</p>
+              </td>
+            </tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+    """
+
+    # 1. Tentativa via Resend HTTP API (Porta 443 — 100% liberada no Railway)
+    if resend_api_key:
+        try:
+            url = "https://api.resend.com/emails"
+            headers = {
+                "Authorization": f"Bearer {resend_api_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "from": "CorrEnem <onboarding@resend.dev>",
+                "to": [email_destino],
+                "subject": "✉️ Confirme seu e-mail — CORRENEM",
+                "html": html_body
+            }
+            req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status in (200, 201):
+                    print(f"[AUTH] E-mail enviado com sucesso via Resend HTTP API para {email_destino}")
+                    return True
+        except Exception as resend_err:
+            print(f"[AUTH] Erro via Resend HTTP API: {resend_err}")
+
+    # 2. Tentativa via Brevo HTTP API (Porta 443 — 100% liberada no Railway)
+    if brevo_api_key:
+        try:
+            url = "https://api.brevo.com/v3/smtp/email"
+            headers = {
+                "api-key": brevo_api_key,
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "sender": {"name": "CorrEnem", "email": email_remetente or "noreply@correnem.com"},
+                "to": [{"email": email_destino, "name": nome}],
+                "subject": "✉️ Confirme seu e-mail — CORRENEM",
+                "htmlContent": html_body
+            }
+            req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status in (200, 201):
+                    print(f"[AUTH] E-mail enviado com sucesso via Brevo HTTP API para {email_destino}")
+                    return True
+        except Exception as brevo_err:
+            print(f"[AUTH] Erro via Brevo HTTP API: {brevo_err}")
 
     if not email_remetente or not email_senha:
         if SHOW_CONSOLE_CODES:
             print(f"[AUTH-DEV] E-mail não configurado. Código para {email_destino}: {codigo}")
-        return False  # Modo desenvolvimento
+        return False
 
     try:
         msg = MIMEMultipart("alternative")
