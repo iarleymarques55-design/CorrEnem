@@ -281,6 +281,9 @@ def _enviar_email_verificacao(email_destino: str, nome: str, codigo: str) -> boo
                 if resp.status in (200, 201):
                     print(f"[AUTH] E-mail enviado com sucesso via Resend HTTP API para {email_destino}")
                     return True
+        except urllib.error.HTTPError as http_err:
+            err_body = http_err.read().decode('utf-8', errors='ignore')
+            print(f"[AUTH] Erro HTTP {http_err.code} via Resend API: {err_body}")
         except Exception as resend_err:
             print(f"[AUTH] Erro via Resend HTTP API: {resend_err}")
 
@@ -303,8 +306,12 @@ def _enviar_email_verificacao(email_destino: str, nome: str, codigo: str) -> boo
                 if resp.status in (200, 201):
                     print(f"[AUTH] E-mail enviado com sucesso via Brevo HTTP API para {email_destino}")
                     return True
+        except urllib.error.HTTPError as http_err:
+            err_body = http_err.read().decode('utf-8', errors='ignore')
+            print(f"[AUTH] Erro HTTP {http_err.code} via Brevo API: {err_body}")
         except Exception as brevo_err:
             print(f"[AUTH] Erro via Brevo HTTP API: {brevo_err}")
+
 
     if not email_remetente or not email_senha:
         if SHOW_CONSOLE_CODES:
