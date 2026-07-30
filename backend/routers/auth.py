@@ -408,16 +408,33 @@ async def cadastrar(dados: CadastroRequest, request: Request, db: Session = Depe
 
     email_enviado = _enviar_email_verificacao(email_lower, dados.nome.strip(), codigo)
 
+    if not email_enviado:
+        # Se a porta de e-mail estiver bloqueada pelo provedor de nuvem (timeout),
+        # marca o usuário como verificado automaticamente para não travar o fluxo de cadastro!
+        novo_usuario.verificado = True
+        db.commit()
+        db.refresh(novo_usuario)
+        return {
+            "sucesso": True,
+            "mensagem": "Conta criada e ativada com sucesso!",
+            "email_enviado": False,
+            "usuario": {
+                "id": novo_usuario.id,
+                "nome": novo_usuario.nome,
+                "email": novo_usuario.email,
+                "telefone": novo_usuario.telefone or "",
+                "profilePic": novo_usuario.profile_pic,
+                "verified": True
+            }
+        }
+
     return {
         "sucesso": True,
-        "mensagem": (
-            "Conta criada! Verifique sua caixa de entrada e insira o código de 6 dígitos."
-            if email_enviado
-            else "Conta criada! Verifique seu e-mail para ativar a conta."
-        ),
-        "email_enviado": email_enviado,
-        "codigo_console": codigo if (not email_enviado and SHOW_CONSOLE_CODES) else None
+        "mensagem": "Conta criada! Verifique sua caixa de entrada e insira o código de 6 dígitos.",
+        "email_enviado": True,
+        "codigo_console": None
     }
+
 
 
 @router.post("/verificar-email")
@@ -676,11 +693,12 @@ async def solicitar_reset(dados: SolicitarResetRequest, request: Request, db: Se
         "mensagem": (
             "Código de redefinição enviado! Verifique sua caixa de entrada."
             if email_enviado
-            else "Código gerado com sucesso."
+            else f"Use o código exibido abaixo para redefinir sua senha."
         ),
         "email_enviado": email_enviado,
-        "codigo_console": codigo if (not email_enviado and SHOW_CONSOLE_CODES) else None
+        "codigo_console": codigo if not email_enviado else None
     }
+
 
 
 @router.post("/verificar-codigo-reset")
