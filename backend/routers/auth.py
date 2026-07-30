@@ -225,17 +225,32 @@ def _enviar_email_verificacao(email_destino: str, nome: str, codigo: str) -> boo
         msg.attach(MIMEText(texto_simples, "plain", "utf-8"))
         msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-            server.ehlo()
-            server.starttls()
-            server.login(email_remetente, email_senha)
-            server.sendmail(email_remetente, email_destino, msg.as_string())
+        # Tenta primeiro a porta configurada (ex: 587 STARTTLS ou 465 SSL)
+        try:
+            if smtp_port == 465:
+                with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=12) as server:
+                    server.login(email_remetente, email_senha)
+                    server.sendmail(email_remetente, email_destino, msg.as_string())
+            else:
+                with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
+                    server.ehlo()
+                    server.starttls()
+                    server.login(email_remetente, email_senha)
+                    server.sendmail(email_remetente, email_destino, msg.as_string())
+            print(f"[AUTH] E-mail enviado com sucesso para {email_destino}")
+            return True
+        except Exception as err1:
+            print(f"[AUTH] Tentativa na porta {smtp_port} falhou ({err1}). Tentando fallback via Gmail SSL (porta 465)...")
+            try:
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=12) as server:
+                    server.login(email_remetente, email_senha)
+                    server.sendmail(email_remetente, email_destino, msg.as_string())
+                print(f"[AUTH] E-mail enviado com sucesso via fallback SSL (465) para {email_destino}")
+                return True
+            except Exception as err2:
+                print(f"[AUTH] Erro final ao enviar e-mail: {err2}")
+                return False
 
-        print(f"[AUTH] E-mail enviado para {email_destino}")
-        return True
-    except Exception as e:
-        print(f"[AUTH] Erro ao enviar e-mail: {e}")
-        return False
 
 
 # ── Rotas de Autenticação com PostgreSQL ──────────────────────────────────────
