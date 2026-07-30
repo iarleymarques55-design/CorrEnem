@@ -250,6 +250,10 @@ def _enviar_email_verificacao(email_destino: str, nome: str, codigo: str) -> boo
             except Exception as err2:
                 print(f"[AUTH] Erro final ao enviar e-mail: {err2}")
                 return False
+    except Exception as outer_err:
+        print(f"[AUTH] Erro ao montar ou enviar e-mail: {outer_err}")
+        return False
+
 
 
 
