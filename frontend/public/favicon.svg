@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="faviconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <filter id="faviconShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#059669" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- Background Badge -->
+  <rect x="32" y="32" width="448" height="448" rx="128" fill="url(#faviconGrad)" filter="url(#faviconShadow)"/>
+  <!-- Inner Ring -->
+  <circle cx="256" cy="256" r="160" stroke="#ffffff" stroke-width="24" stroke-opacity="0.25" fill="none"/>
+  <!-- Stylized Copyright / Brand Protection Symbol (C) -->
+  <path d="M 330 170 A 130 130 0 1 0 330 342" stroke="#ffffff" stroke-width="38" stroke-linecap="round" fill="none"/>
+  <!-- Center Star Spark -->
+  <path d="M256 186L267 235L316 246L267 257L256 306L245 257L196 246L245 235Z" fill="#ffffff"/>
+</svg>

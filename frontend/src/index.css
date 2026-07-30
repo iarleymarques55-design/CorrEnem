@@ -1,0 +1,320 @@
+@import "tailwindcss";
+
+/* ================================================
+   DESIGN SYSTEM — CORRENEM
+   Paleta: Verde-azulado escuro + Âmbar quente
+   Sensação: Premium, confiável, moderno
+   ================================================ */
+@theme {
+  /* Cores Principais */
+  --color-brand-bg: #F4F7F6;           /* Fundo geral: verde-cinza suave */
+  --color-brand-dark: #0D1F1A;         /* Texto principal: verde noturno */
+  --color-brand-card: #FFFFFF;
+
+  /* Cor de Destaque 1: Verde-azulado premium */
+  --color-brand-primary: #1A7A5E;      /* Verde esmeralda escuro */
+  --color-brand-primary-light: #2DA882;/* Verde mais claro p/ hover */
+  --color-brand-primary-pale: #E8F5F0; /* Fundo suave para badges */
+
+  /* Cor de Destaque 2: Âmbar quente */
+  --color-brand-amber: #D97706;        /* Âmbar ouro */
+  --color-brand-amber-light: #F59E0B;  /* Âmbar mais claro */
+  --color-brand-amber-pale: #FFFBEB;   /* Fundo âmbar suave */
+
+  /* Neutros */
+  --color-brand-muted: #5E7A72;        /* Texto secundário: verde-cinza */
+  --color-brand-border: #D1E0DA;       /* Bordas suaves */
+  --color-brand-surface: #EDF4F1;      /* Superfície alternativa */
+
+  /* Semântica */
+  --color-brand-success: #059669;
+  --color-brand-danger: #DC2626;
+  --color-brand-warning: #D97706;
+
+  /* Tipografia */
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+}
+
+/* ================================================
+   BASE
+   ================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-brand-bg);
+  font-family: var(--font-sans);
+  color: var(--color-brand-dark);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+  color: var(--color-brand-dark);
+}
+
+/* ================================================
+   SCROLLBAR CUSTOM
+   ================================================ */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-brand-bg); }
+::-webkit-scrollbar-thumb { background: var(--color-brand-border); border-radius: 9px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-brand-muted); }
+
+/* ================================================
+   ANIMAÇÕES
+   ================================================ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: scale(0.96) translateY(-12px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);     }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(1deg); }
+  50%       { transform: translateY(-8px) rotate(0.5deg); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand-primary) 25%, transparent); }
+  50%       { box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-brand-primary) 0%, transparent); }
+}
+
+@keyframes progressFill {
+  from { width: 0%; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1);   }
+}
+
+/* Classes utilitárias de animação */
+.animate-fade-in      { animation: fadeInUp  0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-down   { animation: slideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-float        { animation: float 4s ease-in-out infinite; }
+.animate-pulse-glow   { animation: pulseGlow 2.5s ease-in-out infinite; }
+.animate-progress     { animation: progressFill 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.animate-count        { animation: countUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* Delays de entrada escalonada */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+
+/* Gradiente de texto shimmer para o hero */
+.text-gradient {
+  background: linear-gradient(
+    135deg,
+    var(--color-brand-primary) 0%,
+    var(--color-brand-primary-light) 40%,
+    var(--color-brand-amber) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Efeito shimmer animado no texto */
+.text-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-brand-primary) 0%,
+    var(--color-brand-amber-light) 50%,
+    var(--color-brand-primary) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+
+/* ================================================
+   CARD BASE
+   ================================================ */
+.card {
+  background: var(--color-brand-card);
+  border: 1px solid var(--color-brand-border);
+  border-radius: 20px;
+  box-shadow: 0 1px 3px 0 rgba(0,0,0,0.04), 0 4px 12px 0 rgba(26,122,94,0.04);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px 0 rgba(26,122,94,0.08);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
+}
+
+/* ================================================
+   BOTÕES CUSTOMIZADOS
+   ================================================ */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-brand-primary);
+  color: white;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 14px 28px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px 0 color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+}
+
+.btn-primary:hover {
+  background: var(--color-brand-primary-light);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px 0 color-mix(in srgb, var(--color-brand-primary) 40%, transparent);
+}
+
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  color: var(--color-brand-dark);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 14px 28px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-brand-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--color-brand-surface);
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active { transform: scale(0.98); }
+
+/* ================================================
+   BADGE / CHIP
+   ================================================ */
+.badge-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-brand-primary-pale);
+  color: var(--color-brand-primary);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 100px;
+}
+
+/* ================================================
+   INPUTS
+   ================================================ */
+.input-field {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-brand-border);
+  background: white;
+  font-size: 0.875rem;
+  font-family: var(--font-sans);
+  color: var(--color-brand-dark);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.input-field:focus {
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+}
+
+.input-field::placeholder {
+  color: color-mix(in srgb, var(--color-brand-muted) 60%, transparent);
+}
+
+/* ================================================
+   HERO SECTION BACKGROUND
+   ================================================ */
+.hero-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 60% -20%, color-mix(in srgb, var(--color-brand-primary) 8%, transparent), transparent),
+    radial-gradient(ellipse 50% 60% at 100% 80%, color-mix(in srgb, var(--color-brand-amber) 5%, transparent), transparent),
+    var(--color-brand-bg);
+}
+
+/* ================================================
+   GLASSMORPHISM
+   ================================================ */
+.glass {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.6);
+}
+
+/* ================================================
+   FOLHA PAUTADA PREMIUM (ESTILO ENEM)
+   ================================================ */
+.redacao-folha-container {
+  background: #FFFDF9; /* tom de papel amarelado premium */
+  border: 1.5px solid var(--color-brand-border);
+  box-shadow: 0 10px 30px rgba(13, 31, 26, 0.05), inset 0 0 40px rgba(0, 0, 0, 0.01);
+}
+
+.redacao-linha-numero {
+  height: 2.2rem;
+  line-height: 2.2rem;
+  font-family: monospace;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.redacao-textarea-folha {
+  background-image: linear-gradient(color-mix(in srgb, var(--color-brand-border) 40%, transparent) 1px, transparent 1px);
+  background-size: 100% 2.2rem;
+  line-height: 2.2rem;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  border: none;
+  resize: none;
+  outline: none;
+  background-attachment: local;
+  padding-top: 0.15rem;
+}
+

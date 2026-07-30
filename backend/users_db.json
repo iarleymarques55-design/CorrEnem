@@ -1,0 +1,29 @@
+[
+  {
+    "nome": "Teste",
+    "email": "teste@teste.com",
+    "senha_hash": "8bb0cf6eb9b17d0f7d22b456f121257dc1254e1f01665370476383ea776df414",
+    "telefone": "",
+    "profilePic": null,
+    "verificado": false,
+    "criado_em": "2026-07-26T18:50:49Z"
+  },
+  {
+    "nome": "Iarley Marques",
+    "email": "iarleymarques672@gmail.com",
+    "senha_hash": "bf0ed7180d83b39f81907d63b8c8bbb986f4a2c6a197afb8870324714b25ee82",
+    "telefone": "85981138376",
+    "profilePic": null,
+    "verificado": true,
+    "criado_em": "2026-07-26T19:04:51Z"
+  },
+  {
+    "nome": "Iarley",
+    "email": "iarleymarques757@gmail.com",
+    "senha_hash": "7f531fcfe0a6c2c391e5d4d2538bba52f95c25eefc3669580070aec7ce149c94",
+    "telefone": "85 981138376",
+    "profilePic": null,
+    "verificado": true,
+    "criado_em": "2026-07-26T20:25:50Z"
+  }
+]

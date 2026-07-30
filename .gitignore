@@ -1,0 +1,22 @@
+# Entornos Virtuais Python
+backend/venv/
+venv/
+*.pyc
+__pycache__/
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+node_modules/
+dist/
+
+# Variáveis de Ambiente e Segredos
+*.env
+.env
+*.env.local
+
+# IDEs e Sistema Operacional
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
