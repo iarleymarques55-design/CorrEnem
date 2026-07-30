@@ -149,11 +149,60 @@ def _gerar_codigo_verificacao() -> str:
     return "".join(secrets.choice(string.digits) for _ in range(6))
 
 
+import socket
+
+# ── Classes SMTP Customizadas para Forçar IPv4 no Railway ───────────────────────
+
+class SMTP_IPv4(smtplib.SMTP):
+    """SMTP client que força conexão via IPv4 (AF_INET) para evitar Errno 101 no Railway."""
+    def _get_socket(self, host, port, timeout):
+        infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+        last_err = None
+        for af, socktype, proto, canonname, sa in infos:
+            s = None
+            try:
+                s = socket.socket(af, socktype, proto)
+                if timeout is not None:
+                    s.settimeout(timeout)
+                s.connect(sa)
+                return s
+            except Exception as err:
+                last_err = err
+                if s:
+                    s.close()
+        if last_err:
+            raise last_err
+        raise OSError(f"Não foi possível conectar via IPv4 em {host}:{port}")
+
+
+class SMTP_SSL_IPv4(smtplib.SMTP_SSL):
+    """SMTP_SSL client que força conexão via IPv4 (AF_INET) e SSL para evitar Errno 101 no Railway."""
+    def _get_socket(self, host, port, timeout):
+        infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+        last_err = None
+        for af, socktype, proto, canonname, sa in infos:
+            s = None
+            try:
+                s = socket.socket(af, socktype, proto)
+                if timeout is not None:
+                    s.settimeout(timeout)
+                s.connect(sa)
+                server_hostname = self._host if self._host else host
+                return self.context.wrap_socket(s, server_hostname=server_hostname)
+            except Exception as err:
+                last_err = err
+                if s:
+                    s.close()
+        if last_err:
+            raise last_err
+        raise OSError(f"Não foi possível conectar via IPv4 SSL em {host}:{port}")
+
+
 # ── Envio de E-mail Real ──────────────────────────────────────────────────────
 
 def _enviar_email_verificacao(email_destino: str, nome: str, codigo: str) -> bool:
     """
-    Envia o e-mail de verificação usando SMTP.
+    Envia o e-mail de verificação usando SMTP com conexão forçada via IPv4.
     Retorna True se enviou com sucesso, False caso contrário.
     """
     from email.mime.multipart import MIMEMultipart
@@ -225,34 +274,35 @@ def _enviar_email_verificacao(email_destino: str, nome: str, codigo: str) -> boo
         msg.attach(MIMEText(texto_simples, "plain", "utf-8"))
         msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-        # Tenta primeiro a porta configurada (ex: 587 STARTTLS ou 465 SSL)
+        # Tentativa 1: IPv4 com a porta configurada (ex: 587 STARTTLS ou 465 SSL)
         try:
             if smtp_port == 465:
-                with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=12) as server:
+                with SMTP_SSL_IPv4(smtp_host, smtp_port, timeout=12) as server:
                     server.login(email_remetente, email_senha)
                     server.sendmail(email_remetente, email_destino, msg.as_string())
             else:
-                with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
+                with SMTP_IPv4(smtp_host, smtp_port, timeout=12) as server:
                     server.ehlo()
                     server.starttls()
                     server.login(email_remetente, email_senha)
                     server.sendmail(email_remetente, email_destino, msg.as_string())
-            print(f"[AUTH] E-mail enviado com sucesso para {email_destino}")
+            print(f"[AUTH] E-mail enviado com sucesso via IPv4 para {email_destino}")
             return True
         except Exception as err1:
-            print(f"[AUTH] Tentativa na porta {smtp_port} falhou ({err1}). Tentando fallback via Gmail SSL (porta 465)...")
+            print(f"[AUTH] Tentativa IPv4 na porta {smtp_port} falhou ({err1}). Tentando fallback IPv4 SSL (porta 465)...")
             try:
-                with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=12) as server:
+                with SMTP_SSL_IPv4("smtp.gmail.com", 465, timeout=12) as server:
                     server.login(email_remetente, email_senha)
                     server.sendmail(email_remetente, email_destino, msg.as_string())
-                print(f"[AUTH] E-mail enviado com sucesso via fallback SSL (465) para {email_destino}")
+                print(f"[AUTH] E-mail enviado com sucesso via fallback IPv4 SSL (465) para {email_destino}")
                 return True
             except Exception as err2:
-                print(f"[AUTH] Erro final ao enviar e-mail: {err2}")
+                print(f"[AUTH] Erro final ao enviar e-mail via IPv4: {err2}")
                 return False
     except Exception as outer_err:
         print(f"[AUTH] Erro ao montar ou enviar e-mail: {outer_err}")
         return False
+
 
 
 
