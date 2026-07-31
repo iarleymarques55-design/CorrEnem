@@ -29,6 +29,12 @@ SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 CODIGO_EXPIRA_MINUTOS = 10
 
+# EmailJS (envio via API REST, chamado pelo backend — o código nunca passa pelo navegador)
+EMAILJS_SERVICE_ID = os.getenv("EMAILJS_SERVICE_ID", "")
+EMAILJS_TEMPLATE_ID = os.getenv("EMAILJS_TEMPLATE_ID", "")
+EMAILJS_PUBLIC_KEY = os.getenv("EMAILJS_PUBLIC_KEY", "")
+EMAILJS_PRIVATE_KEY = os.getenv("EMAILJS_PRIVATE_KEY", "")
+
 # Exibe códigos de console apenas em desenvolvimento quando ativado no .env
 SHOW_CONSOLE_CODES = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "local", "debug") or os.getenv("SHOW_CONSOLE_CODES", "false").lower() == "true"
 
@@ -262,7 +268,34 @@ def _enviar_email_verificacao(email_destino: str, nome: str, codigo: str) -> boo
     </html>
     """
 
-    # 1. Tentativa via Resend HTTP API (Porta 443 — 100% liberada no Railway)
+    # 1. Tentativa via EmailJS REST API (Porta 443 — chamado pelo backend, código nunca vai ao navegador)
+    if EMAILJS_SERVICE_ID and EMAILJS_TEMPLATE_ID and EMAILJS_PUBLIC_KEY:
+        try:
+            url = "https://api.emailjs.com/api/v1.0/email/send"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "service_id": EMAILJS_SERVICE_ID,
+                "template_id": EMAILJS_TEMPLATE_ID,
+                "user_id": EMAILJS_PUBLIC_KEY,
+                "accessToken": EMAILJS_PRIVATE_KEY,  # necessário para chamadas fora do navegador
+                "template_params": {
+                    "email": email_destino,
+                    "to_name": nome,
+                    "codigo": codigo
+                }
+            }
+            req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status == 200:
+                    print(f"[AUTH] E-mail enviado com sucesso via EmailJS para {email_destino}")
+                    return True
+        except urllib.error.HTTPError as http_err:
+            err_body = http_err.read().decode('utf-8', errors='ignore')
+            print(f"[AUTH] Erro HTTP {http_err.code} via EmailJS API: {err_body}")
+        except Exception as emailjs_err:
+            print(f"[AUTH] Erro via EmailJS API: {emailjs_err}")
+
+    # 2. Tentativa via Resend HTTP API (Porta 443 — 100% liberada no Railway)
     if resend_api_key:
         try:
             url = "https://api.resend.com/emails"
@@ -287,7 +320,7 @@ def _enviar_email_verificacao(email_destino: str, nome: str, codigo: str) -> boo
         except Exception as resend_err:
             print(f"[AUTH] Erro via Resend HTTP API: {resend_err}")
 
-    # 2. Tentativa via Brevo HTTP API (Porta 443 — 100% liberada no Railway)
+    # 3. Tentativa via Brevo HTTP API (Porta 443 — 100% liberada no Railway)
     if brevo_api_key:
         try:
             url = "https://api.brevo.com/v3/smtp/email"
