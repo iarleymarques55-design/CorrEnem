@@ -180,21 +180,12 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
           setErrorMsg(parseErrorMessage(response.data?.mensagem, 'Erro ao criar conta. Tente novamente.'));
         }
       } catch (err) {
-        console.warn('Erro na API Python de cadastro, verificando detalhe:', err);
+        console.warn('Erro na API Python de cadastro:', err);
         const detail = err.response?.data?.detail;
         if (detail) {
           setErrorMsg(parseErrorMessage(detail));
         } else {
-          // Fallback offline (localStorage)
-          const users = getUsers();
-          const existe = users.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
-          if (existe) {
-            setErrorMsg('Este e-mail já está cadastrado. Faça login para acessar sua conta.');
-          } else {
-            setInfoMsg('Modo offline: Use o código de teste 123456 abaixo para ativar.');
-            setCodigoConsole('123456');
-            setStep('email_verify');
-          }
+          setErrorMsg('Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.');
         }
       } finally {
         setLoading(false);
@@ -216,35 +207,12 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
           setErrorMsg(parseErrorMessage(response.data?.mensagem, 'Erro ao realizar login. Verifique seus dados.'));
         }
       } catch (err) {
-        console.warn('Erro na API Python de login, verificando detalhe:', err);
+        console.warn('Erro na API Python de login:', err);
         const detail = err.response?.data?.detail;
         if (detail) {
           setErrorMsg(parseErrorMessage(detail));
         } else {
-          // Fallback local
-          const users = getUsers();
-          const usuarioEncontrado = users.find(
-            u => u.email.toLowerCase() === email.trim().toLowerCase() && u.senha === senha
-          );
-
-          if (!usuarioEncontrado) {
-            const emailExiste = users.find(u => u.email.toLowerCase() === email.trim().toLowerCase());
-            if (!emailExiste) {
-              setErrorMsg('E-mail não cadastrado. Crie uma conta para começar.');
-            } else {
-              setErrorMsg('Senha incorreta. Verifique suas credenciais e tente novamente.');
-            }
-          } else {
-            onLoginSuccess({
-              nome: usuarioEncontrado.nome,
-              email: usuarioEncontrado.email,
-              telefone: usuarioEncontrado.telefone,
-              profilePic: usuarioEncontrado.profilePic || null,
-              verified: true
-            });
-            resetForm();
-            onClose();
-          }
+          setErrorMsg('Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.');
         }
       } finally {
         setLoading(false);
@@ -278,27 +246,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     } catch (err) {
       console.warn('Erro na verificação de e-mail via API Python:', err);
       const detail = err.response?.data?.detail;
-
-      // Suporte a código estático '123456' ou '1234' para testes locais de fallback
-      if (emailCode.trim() === '1234' || emailCode.trim() === '123456' || (codigoConsole && emailCode.trim() === codigoConsole)) {
-        if (telefone.trim()) {
-          setStep('phone_verify');
-        } else {
-          const novoUsuario = {
-            nome: nome.trim() || 'Estudante',
-            email: email.trim().toLowerCase(),
-            telefone: telefone.trim(),
-            profilePic: profilePic || null,
-            verified: true,
-          };
-          const saved = upsertUserLocal(novoUsuario);
-          onLoginSuccess(saved);
-          resetForm();
-          onClose();
-        }
-      } else {
-        setErrorMsg(parseErrorMessage(detail, 'Código de e-mail inválido ou expirado. Verifique e tente novamente.'));
-      }
+      setErrorMsg(parseErrorMessage(detail, 'Código de e-mail inválido ou expirado. Verifique e tente novamente.'));
     } finally {
       setLoading(false);
     }
@@ -379,20 +327,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     } catch (err) {
       console.warn('Erro ao solicitar redefinição via API Python:', err);
       const detail = err.response?.data?.detail;
-      if (detail) {
-        setErrorMsg(parseErrorMessage(detail));
-      } else {
-        // Fallback local
-        const users = getUsers();
-        const existe = users.find(u => u.email.toLowerCase() === targetEmail);
-        if (!existe) {
-          setErrorMsg('E-mail não encontrado no sistema.');
-        } else {
-          setInfoMsg('Modo offline: Use o código de teste 123456 abaixo para continuar.');
-          setCodigoConsole('123456');
-          setStep('reset_codigo');
-        }
-      }
+      setErrorMsg(parseErrorMessage(detail, 'Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.'));
     } finally {
       setLoading(false);
     }
@@ -428,14 +363,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     } catch (err) {
       console.warn('Erro ao verificar código de reset via API Python:', err);
       const detail = err.response?.data?.detail;
-
-      // Fallback local para testes (1234, 123456, ou codigoConsole)
-      if (codigo === '1234' || codigo === '123456' || (codigoConsole && codigo === codigoConsole)) {
-        setInfoMsg('Código válido! Agora defina sua nova senha.');
-        setStep('reset_senha');
-      } else {
-        setErrorMsg(parseErrorMessage(detail, 'Código de redefinição inválido ou expirado.'));
-      }
+      setErrorMsg(parseErrorMessage(detail, 'Código de redefinição inválido ou expirado.'));
     } finally {
       setLoading(false);
     }
@@ -467,11 +395,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
       });
 
       if (response.data && response.data.sucesso) {
-        // Atualiza também no localStorage caso haja sincronização local
-        const users = getUsers();
-        const updatedUsers = users.map(u => u.email.toLowerCase() === targetEmail ? { ...u, senha: resetNovaSenha } : u);
-        saveUsers(updatedUsers);
-
         setInfoMsg('Senha redefinida com sucesso! Faça login com a sua nova senha.');
         setIsSignUp(false);
         setEmail(targetEmail);
@@ -483,21 +406,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
     } catch (err) {
       console.warn('Erro na redefinição de senha via API Python:', err);
       const detail = err.response?.data?.detail;
-
-      if (detail) {
-        setErrorMsg(parseErrorMessage(detail));
-      } else {
-        // Fallback local
-        const users = getUsers();
-        const updatedUsers = users.map(u => u.email.toLowerCase() === targetEmail ? { ...u, senha: resetNovaSenha } : u);
-        saveUsers(updatedUsers);
-
-        setInfoMsg('Senha redefinida com sucesso! Faça login com a sua nova senha.');
-        setIsSignUp(false);
-        setEmail(targetEmail);
-        setSenha('');
-        setStep('form');
-      }
+      setErrorMsg(parseErrorMessage(detail, 'Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.'));
     } finally {
       setLoading(false);
     }
@@ -581,14 +490,9 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
               } catch (apiErr) {
                 console.warn('Erro na chamada da API do Google:', apiErr);
                 const detail = apiErr.response?.data?.detail;
-                if (detail) {
-                  setErrorMsg(parseErrorMessage(detail));
-                  return;
-                } else {
-                  // Fallback offline (se a API estiver indisponível)
-                  const saved = upsertUserLocal(usuarioGoogle);
-                  onLoginSuccess(saved);
-                }
+                setErrorMsg(parseErrorMessage(detail, 'Não foi possível conectar ao servidor. Verifique sua internet e tente novamente.'));
+                setLoading(false);
+                return;
               }
 
               resetForm();
