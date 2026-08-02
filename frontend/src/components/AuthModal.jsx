@@ -171,11 +171,20 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
         });
 
         if (response.data && response.data.sucesso) {
-          setInfoMsg(response.data.mensagem || 'Conta criada! Verifique seu e-mail.');
-          if (response.data.codigo_console) {
-            setCodigoConsole(String(response.data.codigo_console));
+          if (response.data.usuario) {
+            // Conta já veio ativada (ex: e-mail indisponível e o backend ativou automaticamente)
+            const saved = upsertUserLocal(response.data.usuario);
+            setInfoMsg(response.data.mensagem || 'Conta criada com sucesso!');
+            onLoginSuccess(saved);
+            resetForm();
+            onClose();
+          } else {
+            setInfoMsg(response.data.mensagem || 'Conta criada! Verifique seu e-mail.');
+            if (response.data.codigo_console) {
+              setCodigoConsole(String(response.data.codigo_console));
+            }
+            setStep('email_verify');
           }
-          setStep('email_verify');
         } else {
           setErrorMsg(parseErrorMessage(response.data?.mensagem, 'Erro ao criar conta. Tente novamente.'));
         }
