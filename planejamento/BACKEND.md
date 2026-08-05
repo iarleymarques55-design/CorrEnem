@@ -58,7 +58,7 @@ backend/
 ### 🔹 `routers/auth.py` (Módulo de Segurança & Gestão de Contas)
 - **Modelos ORM & Pydantic**: Mapeia as requisições de cadastro, login e redefinição.
 - **Hashing PBKDF2-HMAC-SHA256**: Criptografia robusta com salt aleatório e proteção contra *timing attacks*.
-- **Serviço de E-mail SMTP**: Envia códigos de verificação de 6 dígitos formatados em HTML via servidor Gmail.
+- **Serviço de E-mail via Brevo HTTP API**: Envia códigos de verificação de 6 dígitos formatados em HTML de forma segura e compatível com hospedagens na nuvem (Railway/Render).
 
 ### 🔹 `main.py` (Núcleo de IA e Endpoints Principais)
 - Configura permissões de origens cruzadas (**CORS Middleware**).

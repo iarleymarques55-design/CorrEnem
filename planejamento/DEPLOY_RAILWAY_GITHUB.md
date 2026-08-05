@@ -109,10 +109,9 @@ Vá na aba **"Variables"** do serviço do Back-end e adicione:
 | :--- | :--- |
 | `DATABASE_URL` | Cole a `DATABASE_URL` gerada pelo PostgreSQL no Passo 2 |
 | `GROQ_API_KEY` | Sua chave oficial da API Groq (`gsk_...`) |
-| `EMAIL_REMETENTE` | Seu e-mail do Gmail para envio de códigos de verificação |
-| `EMAIL_SENHA` | Senha de App de 16 dígitos gerada na Conta Google |
-| `SMTP_HOST` | `smtp.gmail.com` |
-| `SMTP_PORT` | `587` |
+| `BREVO_API_KEY` | Sua chave de API gerada no painel do Brevo (`xkeysib-...`) |
+| `BREVO_REMETENTE_EMAIL` | Seu e-mail verificado como remetente no Brevo |
+| `BREVO_REMETENTE_NOME` | Nome de exibição padrão do e-mail (ex: `CorrEnem`) |
 | `ALLOWED_ORIGINS` | `https://seu-frontend.vercel.app,http://localhost:5173` |
 | `ENVIRONMENT` | `production` |
 

@@ -48,9 +48,8 @@
 Como a aplicação se encontra em fase de protótipo e transição para um banco de dados relacional ou NoSQL (PostgreSQL / Supabase / MongoDB), destacam-se os seguintes pontos de atenção e recomendações de segurança:
 
 ### 1. **Autenticação & Hashing de Senhas**
-- **Estado Atual**: Utiliza hash simples em SHA-256 no módulo `auth.py`.
-- **Recomendação**: Para o ambiente com banco de dados, implementar algoritmos robustos com *salt* único como **bcrypt**, **Argon2** ou **PBKDF2** (via bibliotecas como `passlib` ou `bcrypt`).
-- **Gestão de Sessão**: Substituir a verificação em memória local por tokens **JWT (JSON Web Tokens)** assinados ou cookies `HttpOnly` com flags `SameSite=Lax` para proteção contra ataques *Cross-Site Scripting (XSS)*.
+- **Estado Atual**: Implementado hashing robusto com **PBKDF2-HMAC-SHA256** com salt único gerado aleatoriamente e validação em tempo constante.
+- **Gestão de Sessão**: O backend armazena o estado de verificação com e-mail diretamente no banco PostgreSQL.
 
 ### 2. **Armazenamento de Dados no Front-end**
 - **Estado Atual**: Persistência temporária de rascunhos e perfil em `localStorage`.
@@ -61,8 +60,8 @@ Como a aplicação se encontra em fase de protótipo e transição para um banco
 - **Recomendação**: Adicionar middleware no FastAPI para impor limite rígido de tamanho de arquivo (ex: máximo 5 MB) antes da leitura total no buffer de memória (`await imagem.read()`), prevenindo potenciais ataques de Negação de Serviço (*DoS*).
 
 ### 4. **Controle de Origem (CORS) & Variáveis de Ambiente**
-- **Estado Atual**: Restrito a `localhost:5173`.
-- **Recomendação**: Ao realizar a publicação em produção, atualizar as origens permitidas no `CORSMiddleware` exclusivamente para o domínio oficial da aplicação e garantir que a `GROQ_API_KEY` e credenciais SMTP permaneçam isoladas no arquivo `.env`.
+- **Estado Atual**: Restrito às origens especificadas em `ALLOWED_ORIGINS` no `.env`.
+- **Recomendação**: Ao realizar a publicação em produção, atualizar as origens permitidas no `CORSMiddleware` exclusivamente para o domínio oficial da aplicação e garantir que a `GROQ_API_KEY` e a `BREVO_API_KEY` permaneçam isoladas no arquivo `.env`.
 
 ---
 
