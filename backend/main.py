@@ -32,7 +32,7 @@ except Exception as db_init_err:
 # Instância da aplicação FastAPI
 app = FastAPI(
     title="CorrEnem API",
-    description="API RESTful de alta performance para correção de redações ENEM com IA (Groq Llama 3.3 70B & Llama 4 Scout).",
+    description="API RESTful para correção de redações ENEM e recursos de IA com OpenAI.",
     version="2.0.0"
 )
 

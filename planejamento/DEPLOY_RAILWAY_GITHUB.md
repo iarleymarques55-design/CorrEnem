@@ -91,7 +91,7 @@ backend/
 ├── main.py                    # Aplicação principal FastAPI (montagem de routers)
 ├── auth.py                    # Wrapper retrocompatível
 ├── routers/                   # Módulos de Rotas (auth, correcao, historico, manuscrito, temas)
-└── services/                  # Serviços de IA (Groq), fallbacks e imagens (Unsplash)
+└── services/                  # Serviços OpenAI, fallbacks e imagens (Unsplash)
 ```
 
 ### **3.2 Criar o Serviço do Back-end**
@@ -108,7 +108,9 @@ Vá na aba **"Variables"** do serviço do Back-end e adicione:
 | Nome da Variável | Valor Recomendado / Descrição |
 | :--- | :--- |
 | `DATABASE_URL` | Cole a `DATABASE_URL` gerada pelo PostgreSQL no Passo 2 |
-| `GROQ_API_KEY` | Sua chave oficial da API Groq (`gsk_...`) |
+| `OPENAI_API_KEY` | Sua chave oficial da API OpenAI (`sk-...`) |
+| `OPENAI_TEXT_MODEL` | Modelo OpenAI para texto, por exemplo `gpt-4o-mini` |
+| `OPENAI_VISION_MODEL` | Modelo OpenAI multimodal, por exemplo `gpt-4o-mini` |
 | `BREVO_API_KEY` | Sua chave de API gerada no painel do Brevo (`xkeysib-...`) |
 | `BREVO_REMETENTE_EMAIL` | Seu e-mail verificado como remetente no Brevo |
 | `BREVO_REMETENTE_NOME` | Nome de exibição padrão do e-mail (ex: `CorrEnem`) |
@@ -164,7 +166,7 @@ export const API_BASE_URL = (import.meta.env?.VITE_API_URL || 'http://localhost:
 - [x] Repositório enviado e atualizado no GitHub (`git push -u origin main`).
 - [x] Instância do PostgreSQL em execução no Railway.
 - [x] Serviço `backend` configurado no Railway com `Root Directory: backend` e arquivo `Procfile`.
-- [x] Variáveis de ambiente configuradas no Railway (`DATABASE_URL`, `GROQ_API_KEY`, etc.).
+- [x] Variáveis de ambiente configuradas no Railway (`DATABASE_URL`, `OPENAI_API_KEY`, etc.).
 - [x] Domínio público do Back-end gerado (`https://...up.railway.app`).
 - [x] Front-end hospedado no Vercel ou Railway apontando para a `VITE_API_URL` de produção.
-- [x] Cadastro de usuários, envio de e-mail SMTP, login, IA (Llama 3.3 70B & Llama 4 Scout) e salvamento no PostgreSQL testados em ambiente de produção.
+- [x] Cadastro de usuários, envio de e-mail, login, IA OpenAI e salvamento no PostgreSQL testados em produção.

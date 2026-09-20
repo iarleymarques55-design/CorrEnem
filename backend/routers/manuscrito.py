@@ -2,19 +2,25 @@
 Router de Transcrição de Manuscritos — /transcrever-manuscrito
 Valida e transcreve redações manuscritas enviadas como imagem usando:
 1. Verificações físicas (tamanho e resolução mínima)
-2. Validação visual por IA multimodal (Llama 4 Scout) para confirmar se é uma folha de redação
+2. Validação visual por IA multimodal OpenAI para confirmar se é uma folha de redação
 3. Transcrição contextualizada do texto manuscrito
 """
 import json
-import base64
 import io
 
 from fastapi import APIRouter, UploadFile, File, Form
 from PIL import Image
+from pydantic import BaseModel, Field
 
-from services.groq_client import client
+from services.openai_client import analisar_imagem, client, transcrever_imagem
 
 router = APIRouter(tags=["Manuscrito & OCR"])
+
+
+class ValidacaoImagem(BaseModel):
+    tipo: str = Field(description="Categoria visual da imagem")
+    e_redacao_manuscrita: bool
+    motivo_rejeicao: str = ""
 
 
 # ── Helpers de Validação ──────────────────────────────────────────────────────
@@ -57,7 +63,7 @@ def _analisar_estrutura_basica(conteudo_imagem: bytes) -> dict:
 
 async def _validar_imagem_com_ia(conteudo_imagem: bytes, content_type: str) -> dict:
     """
-    Usa o modelo de visão multimodal (Llama 4 Scout) para verificar
+    Usa o modelo de visão multimodal OpenAI para verificar
     se a imagem é de fato uma folha de redação manuscrita.
     Retorna: { valido: bool, status: str, mensagem: str }
     """
@@ -66,9 +72,7 @@ async def _validar_imagem_com_ia(conteudo_imagem: bytes, content_type: str) -> d
         return {"valido": True, "status": "sucesso", "mensagem": ""}
 
     try:
-        img_b64 = base64.b64encode(conteudo_imagem).decode("utf-8")
         mime = content_type if content_type.startswith("image/") else "image/jpeg"
-        data_url = f"data:{mime};base64,{img_b64}"
 
         prompt_visao = (
             "Analise esta imagem e responda APENAS com um JSON no formato exato abaixo, sem explicações adicionais:\n"
@@ -93,24 +97,14 @@ async def _validar_imagem_com_ia(conteudo_imagem: bytes, content_type: str) -> d
             "Se não houver texto manuscrito visível na imagem, rejeite."
         )
 
-        resposta = client.chat.completions.create(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "image_url", "image_url": {"url": data_url}},
-                        {"type": "text", "text": prompt_visao}
-                    ]
-                }
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.0,
-            max_tokens=200,
+        resultado = analisar_imagem(
+            prompt_visao,
+            conteudo_imagem,
+            mime,
+            ValidacaoImagem,
+            temperatura=0.0,
+            max_output_tokens=200,
         )
-
-        resultado_str = resposta.choices[0].message.content or "{}"
-        resultado = json.loads(resultado_str)
 
         e_redacao = resultado.get("e_redacao_manuscrita", False)
         tipo = resultado.get("tipo", "outro")
@@ -224,8 +218,21 @@ async def transcrever_manuscrito(
             "texto_transcrito": None
         }
 
-    # Imagem validada pela IA: gera a transcrição contextualizada
-    texto_transcrito = _gerar_transcricao_simulada(tema)
+    # Imagem validada pela IA: transcreve o conteúdo manuscrito.
+    if client:
+        prompt_transcricao = (
+            "Transcreva exatamente o texto manuscrito desta redação em português. "
+            "Preserve os parágrafos e a ordem das linhas quando possível. "
+            "Não invente palavras: marque trechos ilegíveis como [ilegível]. "
+            "Retorne somente a transcrição, sem comentários."
+        )
+        try:
+            texto_transcrito = transcrever_imagem(prompt_transcricao, conteudo_imagem, content_type)
+        except Exception as e:
+            print(f"[OCR-IA] Erro na transcrição OpenAI: {e}")
+            texto_transcrito = _gerar_transcricao_simulada(tema)
+    else:
+        texto_transcrito = _gerar_transcricao_simulada(tema)
 
     return {
         "valido": True,

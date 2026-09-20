@@ -1,5 +1,7 @@
 # Entornos Virtuais Python
 backend/venv/
+backend/.venv/
+.venv/
 venv/
 *.pyc
 __pycache__/

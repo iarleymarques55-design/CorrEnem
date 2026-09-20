@@ -1,6 +1,6 @@
 """
 Funções de Simulação / Fallback do CorrEnem.
-Usadas quando o cliente Groq não está disponível (sem chave de API ou em caso de erro).
+Usadas quando o provedor de IA não está disponível ou ocorre um erro.
 Retornam dados simulados realistas para manter o app funcional em modo demo.
 """
 import random
@@ -72,7 +72,36 @@ def simular_correcao(tema: str, texto: str) -> dict:
     }
 
 
-def simular_tema_gerado() -> dict:
+def _enriquecer_motivadores_demo(titulo: str, motivadores: str) -> str:
+    """Mantém o modo demo útil quando o provedor de IA está indisponível."""
+    complementos = [
+        (
+            "O problema afeta de forma desigual diferentes grupos da população e se relaciona a fatores econômicos, culturais e institucionais. "
+            "No Brasil, a ausência de políticas contínuas amplia a vulnerabilidade e dificulta que direitos previstos em lei sejam exercidos. "
+            "A escola, os serviços públicos, as famílias e as organizações sociais participam desse debate, mas enfrentam limitações de recursos e coordenação. "
+            "Por isso, compreender as causas do fenômeno é essencial para construir uma tese consistente e evitar explicações superficiais."
+        ),
+        (
+            "As consequências aparecem tanto na vida cotidiana quanto nos indicadores de desenvolvimento e cidadania. "
+            "Quando o poder público age de maneira fragmentada, iniciativas importantes não alcançam quem mais precisa e os efeitos do problema se acumulam. "
+            "Além disso, a circulação de informações incompletas pode naturalizar desigualdades e reduzir a participação da sociedade na busca por soluções. "
+            "O enfrentamento exige diagnóstico, investimento, fiscalização e ações que considerem as particularidades de cada comunidade brasileira."
+        ),
+        (
+            "A superação desse cenário depende de medidas articuladas entre União, estados, municípios, instituições de ensino e sociedade civil. "
+            "Campanhas educativas, acompanhamento de resultados e ampliação de serviços podem transformar conhecimento em prevenção e proteção social. "
+            "Também é necessário garantir transparência para que a população acompanhe metas, recursos e responsabilidades dos agentes envolvidos. "
+            "Assim, o debate sobre o tema deve combinar respeito aos direitos humanos, evidências confiáveis e propostas de intervenção viáveis."
+        ),
+    ]
+    blocos = motivadores.split("\n\n")
+    return "\n\n".join(
+        f"{bloco}\n{complementos[indice]}" if indice < len(complementos) else bloco
+        for indice, bloco in enumerate(blocos)
+    )
+
+
+def simular_tema_gerado(solicitacao: str = "") -> dict:
     """Retorna um tema pré-definido e realista, evitando repetições recentes."""
     temas = [
         {
@@ -149,7 +178,14 @@ def simular_tema_gerado() -> dict:
 
     temas_disponiveis = [t for t in temas if t["titulo"] not in HISTORICO_TEMAS_GERADOS[-4:]]
     seletor = temas_disponiveis if temas_disponiveis else temas
-    escolhido = random.choice(seletor)
+    escolhido = dict(random.choice(seletor))
+    if solicitacao.strip():
+        assunto = solicitacao.strip().rstrip(".")
+        escolhido["titulo"] = f"Desafios e caminhos para {assunto} no Brasil"
+        escolhido["desc"] = f"Analise os impactos, as causas e as possibilidades de enfrentamento relacionados a {assunto}."
+    escolhido["motivadores"] = _enriquecer_motivadores_demo(
+        escolhido["titulo"], escolhido["motivadores"]
+    )
     HISTORICO_TEMAS_GERADOS.append(escolhido["titulo"])
     return escolhido
 

@@ -82,6 +82,7 @@ export default function App() {
   const [selectedTheme, setSelectedTheme] = useState(null);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [aiThemeError, setAiThemeError] = useState('');
 
   // Histórico de redações
   const [essayHistory, setEssayHistory] = useState([]);
@@ -298,6 +299,7 @@ export default function App() {
   const handleGerarTemaIA = async () => {
     setLoading(true);
     setIsAIThemeActive(true);
+    setAiThemeError('');
     try {
       const response = await axios.post(`${API_BASE_URL}/gerar-tema`);
       setSelectedTheme({
@@ -314,10 +316,7 @@ export default function App() {
       setIsPreviewModalOpen(true);
     } catch (err) {
       console.error(err);
-      // Fallback a um tema aleatório
-      const randomIdx = Math.floor(Math.random() * TEMAS_ENEM.length);
-      setSelectedTheme(TEMAS_ENEM[randomIdx]);
-      setIsPreviewModalOpen(true);
+      setAiThemeError(err.response?.data?.detail || 'Não foi possível gerar o tema com a IA. Tente novamente em instantes.');
     } finally {
       setLoading(false);
     }
@@ -871,7 +870,7 @@ export default function App() {
                 {/* Card Sorteador Aleatório */}
                 <div
                   onClick={handleGerarTemaIA}
-                  className="card p-6 flex flex-col justify-between items-start cursor-pointer group bg-gradient-to-br from-[var(--color-brand-primary-pale)] to-transparent"
+                  className="card p-6 flex flex-col justify-between items-start group bg-gradient-to-br from-[var(--color-brand-primary-pale)] to-transparent"
                 >
                   <div className="w-12 h-12 rounded-2xl bg-white border border-[var(--color-brand-border)] flex items-center justify-center text-[var(--color-brand-primary)] shadow-sm group-hover:scale-105 transition-transform">
                     <Sparkles className="w-6 h-6 text-amber-500 animate-pulse" />
@@ -882,6 +881,11 @@ export default function App() {
                     <p className="text-xs text-[var(--color-brand-muted)] font-medium leading-relaxed">
                       Utilize nossa inteligência artificial para formular um tema ENEM inédito completo.
                     </p>
+                    {aiThemeError && (
+                      <p className="mt-3 text-xs font-bold text-red-700 bg-red-50 border border-red-200 rounded-xl p-3">
+                        {aiThemeError}
+                      </p>
+                    )}
                   </div>
                 </div>
 

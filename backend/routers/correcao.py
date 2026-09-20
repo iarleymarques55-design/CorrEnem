@@ -1,9 +1,4 @@
-"""
-Router de Correção de Redações — /corrigir
-Avalia o texto do estudante nas 5 competências do ENEM usando Groq (Llama 3.3 70B)
-e salva o resultado no PostgreSQL via SQLAlchemy.
-"""
-import json
+"""Router de correção de redações usando OpenAI e PostgreSQL."""
 import time
 
 from fastapi import APIRouter, Depends
@@ -11,7 +6,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from database import get_db, User, Redacao, DesvioRedacao
-from services.groq_client import client
+from services.openai_client import client, gerar_json
 from services.fallbacks import simular_correcao
 
 router = APIRouter(tags=["Correção"])
@@ -42,7 +37,7 @@ class ResultadoCorrecao(BaseModel):
     nota_final: int = Field(..., description="Soma das notas das 5 competências (máximo 1000)")
     comentario_geral: str = Field(..., description="Avaliação global: pontos fortes, fracos e encorajamento")
     explicacao_nota_final: str = Field(..., description="Explicação didática de como as notas se somaram para compor o resultado")
-    desvios: list[DesvioEscrita] = Field(default=[], description="Lista de desvios de escrita para marcação no texto")
+    desvios: list[DesvioEscrita] = Field(default_factory=list, description="Lista de desvios de escrita para marcação no texto")
 
 
 class RedacaoRequest(BaseModel):
@@ -124,7 +119,7 @@ def _salvar_redacao_no_banco(db: Session, requisicao: RedacaoRequest, resultado_
 @router.post("/corrigir")
 @router.post("/avaliar-redacao", include_in_schema=False)
 async def corrigir_redacao(requisicao: RedacaoRequest, db: Session = Depends(get_db)):
-    """Corrige a redação nas 5 competências do ENEM usando Groq (Llama 3.3 70B)."""
+    """Corrige a redação nas 5 competências do ENEM usando OpenAI."""
     if not client:
         res_simulado = simular_correcao(requisicao.tema, requisicao.texto)
         redacao_id = _salvar_redacao_no_banco(db, requisicao, res_simulado)
@@ -135,8 +130,6 @@ async def corrigir_redacao(requisicao: RedacaoRequest, db: Session = Depends(get
         raise HTTPException(status_code=400, detail="Tema e Texto são obrigatórios.")
 
     try:
-        schema_json = ResultadoCorrecao.model_json_schema()
-
         prompt_sistema = (
             "Você é um corretor de redação oficial e extremamente criterioso do ENEM.\n"
             "Avalie a redação fornecida seguindo rigorosamente a grade de correção oficial do ENEM.\n"
@@ -147,8 +140,7 @@ async def corrigir_redacao(requisicao: RedacaoRequest, db: Session = Depends(get
             "Adicionalmente, identifique de 2 a 5 desvios gramaticais, de coesão, clareza ou argumentação reais no texto.\n"
             "No campo 'desvios', retorne um array onde cada objeto possui o 'trecho' exato que contém o erro (case sensitive, igualzinho ao texto original), "
             "o nome do 'erro', a 'competencia' associada (ex: competencia1), a 'explicacao' didática e a 'correcao' sugerida.\n\n"
-            "Retorne APENAS um objeto JSON válido seguindo EXATAMENTE este esquema:\n"
-            f"{json.dumps(schema_json, ensure_ascii=False)}"
+            "Retorne apenas o objeto JSON solicitado, sem markdown ou texto adicional."
         )
 
         prompt_usuario = (
@@ -156,27 +148,24 @@ async def corrigir_redacao(requisicao: RedacaoRequest, db: Session = Depends(get
             f"Texto do Estudante:\n{requisicao.texto}"
         )
 
-        resposta = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": prompt_sistema},
-                {"role": "user", "content": prompt_usuario},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.2,
+        dados_resultado = gerar_json(
+            prompt_sistema,
+            prompt_usuario,
+            ResultadoCorrecao,
+            temperatura=0.2,
         )
-
-        texto_resposta = resposta.choices[0].message.content
-        if not texto_resposta:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=500, detail="Sem resposta do provedor de IA.")
-
-        dados_resultado = json.loads(texto_resposta)
+        resultado_validado = ResultadoCorrecao.model_validate(dados_resultado)
+        notas = [getattr(resultado_validado, f"competencia{i}").nota for i in range(1, 6)]
+        if sum(notas) != resultado_validado.nota_final:
+            raise ValueError("A nota final não corresponde à soma das competências.")
+        if any(desvio.trecho not in requisicao.texto for desvio in resultado_validado.desvios):
+            raise ValueError("A OpenAI retornou um desvio ausente do texto original.")
+        dados_resultado = resultado_validado.model_dump()
         redacao_id = _salvar_redacao_no_banco(db, requisicao, dados_resultado)
         return {**dados_resultado, "id": redacao_id}
 
     except Exception as e:
-        print(f"Erro no Groq, simulando correção: {e}")
+        print(f"Erro na OpenAI, simulando correção: {e}")
         res_fallback = simular_correcao(requisicao.tema, requisicao.texto)
         redacao_id = _salvar_redacao_no_banco(db, requisicao, res_fallback)
         return {**res_fallback, "id": redacao_id}

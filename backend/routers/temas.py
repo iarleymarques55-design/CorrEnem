@@ -1,16 +1,12 @@
-"""
-Router de Temas, Roteiros e Exemplares — /gerar-tema, /gerar-roteiro, /exemplar-referencia
-Gera temas inéditos no estilo ENEM, roteiros de escrita orientada e redações modelo nota 1000
-usando Groq (Llama 3.3 70B). Inclui anti-repetição de temas e seleção de imagens Unsplash.
-"""
-import json
+"""Router de temas, roteiros e exemplares usando OpenAI."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+import asyncio
 
-from services.groq_client import client
+from services.openai_client import client, gerar_json, gerar_json_async
 from services.imagens import get_bg_image_for_tema
-from services.fallbacks import HISTORICO_TEMAS_GERADOS, simular_tema_gerado, simular_roteiro, simular_exemplar
+from services.fallbacks import HISTORICO_TEMAS_GERADOS, simular_roteiro, simular_exemplar
 
 router = APIRouter(tags=["Temas & Exemplares"])
 
@@ -53,11 +49,11 @@ class ExemplarResposta(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/gerar-tema", response_model=TemaGerado)
-@router.post("/gerar-tema-groq", response_model=TemaGerado, include_in_schema=False)
+@router.post("/gerar-tema-ia", response_model=TemaGerado, include_in_schema=False)
 async def gerar_tema():
     """Gera um tema de redação inédito no estilo ENEM com textos motivadores e imagem temática."""
     if not client:
-        return simular_tema_gerado()
+        raise HTTPException(status_code=503, detail="A IA está indisponível no momento. Tente novamente em instantes.")
 
     try:
         # Limita o histórico a 8 temas para evitar prompt crescente
@@ -87,6 +83,8 @@ async def gerar_tema():
             "TEXTO III — <título do texto>\n"
             "<parágrafo de 3 a 5 linhas com dados reais, estatísticas ou citação de autor/órgão>\n\n"
             "REGRAS ABSOLUTAS:\n"
+            "- Cada um dos três textos motivadores deve ter 140 a 220 palavras e dois parágrafos completos.\n"
+            "- Cada parágrafo deve conter 4 a 6 frases desenvolvidas, com contexto brasileiro, causa, consequência ou resposta social.\n"
             "- PROIBIDO usar markdown: sem #, ##, **, *, _, -, numeração com ponto\n"
             "- Cada TEXTO deve ter um título após o travessão (—) na primeira linha\n"
             "- Os textos devem ser realistas, com dados do Brasil, referências a órgãos como IBGE, OMS, ONU, pesquisadores reconhecidos\n"
@@ -94,18 +92,14 @@ async def gerar_tema():
             "- O campo 'motivadores' deve ser uma string de texto puro, sem listas ou markdown"
         )
 
-        resposta = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": prompt_sistema},
-                {"role": "user", "content": "Gere um novo tema inédito do ENEM agora."}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.75,
-            max_tokens=1200,
+        dados = await gerar_json_async(
+            prompt_sistema,
+            "Gere um novo tema inédito do ENEM agora.",
+            TemaGerado,
+            temperatura=0.75,
+            max_output_tokens=2200,
+            timeout=25.0,
         )
-
-        dados = json.loads(resposta.choices[0].message.content)
 
         # Limpa qualquer resquício de markdown no campo motivadores
         motivadores = dados.get("motivadores", "")
@@ -117,15 +111,16 @@ async def gerar_tema():
             HISTORICO_TEMAS_GERADOS.append(dados["titulo"])
 
         # Seleciona a imagem mais relevante e sem repetição
-        dados["bgImage"] = get_bg_image_for_tema(
+        dados["bgImage"] = await asyncio.to_thread(
+            get_bg_image_for_tema,
             titulo=dados.get("titulo", ""),
-            eixo=dados.get("eixo", "")
+            eixo=dados.get("eixo", ""),
         )
         return dados
 
     except Exception as e:
         print(f"Erro ao gerar tema com IA: {e}")
-        return simular_tema_gerado()
+        raise HTTPException(status_code=503, detail="Não foi possível gerar o tema com a IA. Tente novamente em instantes.") from e
 
 
 @router.post("/gerar-roteiro", response_model=RoteiroResposta)
@@ -135,7 +130,6 @@ async def gerar_roteiro(requisicao: RoteiroRequest):
         return simular_roteiro(requisicao.tema)
 
     try:
-        schema_json = RoteiroResposta.model_json_schema()
         prompt_sistema = (
             f"Gere 4 perguntas cruciais para orientar a escrita de uma redação do ENEM sobre o tema: '{requisicao.tema}'.\n"
             "As perguntas devem ajudar o aluno a pensar em cada parágrafo de sua dissertação:\n"
@@ -143,21 +137,15 @@ async def gerar_roteiro(requisicao: RoteiroRequest):
             "Pergunta 2 (para o parágrafo 2 - Desenvolvimento 1): Qual a principal causa ou fator desse problema?\n"
             "Pergunta 3 (para o parágrafo 3 - Desenvolvimento 2): Qual a consequência ou segundo fator do problema no Brasil?\n"
             "Pergunta 4 (para o parágrafo 4 - Conclusão): O que propõe de intervenção prática contendo agente, ação, meio, detalhamento e efeito?\n\n"
-            "Retorne APENAS o JSON condizente com este esquema:\n"
-            f"{json.dumps(schema_json, ensure_ascii=False)}"
+            "Retorne apenas o objeto JSON solicitado, sem markdown ou texto adicional."
         )
 
-        resposta = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": prompt_sistema},
-                {"role": "user", "content": f"Tema: {requisicao.tema}"}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.4,
+        return gerar_json(
+            prompt_sistema,
+            f"Tema: {requisicao.tema}",
+            RoteiroResposta,
+            temperatura=0.4,
         )
-
-        return json.loads(resposta.choices[0].message.content)
 
     except Exception as e:
         print(f"Erro ao gerar roteiro: {e}")
@@ -192,18 +180,13 @@ async def exemplar_referencia(requisicao: ExemplarRequest):
             "- Cada análise deve mencionar trechos reais da redação que você escreveu"
         )
 
-        resposta = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": prompt_sistema},
-                {"role": "user", "content": f"Gere a redação nota 1000 sobre o tema: {requisicao.tema}"}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.3,
-            max_tokens=2000,
+        dados = gerar_json(
+            prompt_sistema,
+            f"Gere a redação nota 1000 sobre o tema: {requisicao.tema}",
+            ExemplarResposta,
+            temperatura=0.3,
+            max_output_tokens=2000,
         )
-
-        dados = json.loads(resposta.choices[0].message.content)
 
         # Limpa markdown residual da redação
         redacao = dados.get("redacao_modelo", "")

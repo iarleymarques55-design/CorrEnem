@@ -27,7 +27,7 @@ const passos = [
     icon: CheckCircle,
     step: '03',
     title: 'Receba a grade ENEM',
-    desc: 'Em segundos o modelo Llama 3.3 retorna sua pontuação nas 5 competências com feedbacks detalhados e dicas práticas de melhoria.',
+    desc: 'Em segundos o modelo de IA retorna sua pontuação nas 5 competências com feedbacks detalhados e dicas práticas de melhoria.',
     color: 'var(--color-brand-success)',
     pale: '#ECFDF5',
   },

@@ -11,6 +11,8 @@ import string
 import hashlib
 import secrets
 import smtplib
+import urllib.request
+from urllib.error import HTTPError
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -193,8 +195,7 @@ class SMTP_SSL_IPv4(smtplib.SMTP_SSL):
                 if timeout is not None:
                     s.settimeout(timeout)
                 s.connect(sa)
-                server_hostname = self._host if self._host else host
-                return self.context.wrap_socket(s, server_hostname=server_hostname)
+                return self.context.wrap_socket(s, server_hostname=host)
             except Exception as err:
                 last_err = err
                 if s:
@@ -289,7 +290,7 @@ def _enviar_email_verificacao(email_destino: str, nome: str, codigo: str) -> boo
                 if resp.status in (200, 202):
                     print(f"[AUTH] E-mail enviado com sucesso via SendGrid para {email_destino}")
                     return True
-        except urllib.error.HTTPError as http_err:
+        except HTTPError as http_err:
             err_body = http_err.read().decode('utf-8', errors='ignore')
             print(f"[AUTH] Erro HTTP {http_err.code} via SendGrid API: {err_body}")
         except Exception as sendgrid_err:
@@ -320,7 +321,7 @@ def _enviar_email_verificacao(email_destino: str, nome: str, codigo: str) -> boo
                 if resp.status == 200:
                     print(f"[AUTH] E-mail enviado com sucesso via EmailJS para {email_destino}")
                     return True
-        except urllib.error.HTTPError as http_err:
+        except HTTPError as http_err:
             err_body = http_err.read().decode('utf-8', errors='ignore')
             print(f"[AUTH] Erro HTTP {http_err.code} via EmailJS API: {err_body}")
         except Exception as emailjs_err:
@@ -346,7 +347,7 @@ def _enviar_email_verificacao(email_destino: str, nome: str, codigo: str) -> boo
                 if resp.status in (200, 201):
                     print(f"[AUTH] E-mail enviado com sucesso via Resend HTTP API para {email_destino}")
                     return True
-        except urllib.error.HTTPError as http_err:
+        except HTTPError as http_err:
             err_body = http_err.read().decode('utf-8', errors='ignore')
             print(f"[AUTH] Erro HTTP {http_err.code} via Resend API: {err_body}")
         except Exception as resend_err:
@@ -372,7 +373,7 @@ def _enviar_email_verificacao(email_destino: str, nome: str, codigo: str) -> boo
                 if resp.status in (200, 201):
                     print(f"[AUTH] E-mail enviado com sucesso via Brevo HTTP API para {email_destino}")
                     return True
-        except urllib.error.HTTPError as http_err:
+        except HTTPError as http_err:
             err_body = http_err.read().decode('utf-8', errors='ignore')
             print(f"[AUTH] Erro HTTP {http_err.code} via Brevo API: {err_body}")
         except Exception as brevo_err:
@@ -492,8 +493,8 @@ async def cadastrar(dados: CadastroRequest, request: Request, db: Session = Depe
                 usuario_existente.senha_hash = _hash_senha(dados.senha)
                 if dados.nome.strip() and (usuario_existente.nome == "Usuário Google" or not usuario_existente.nome):
                     usuario_existente.nome = dados.nome.strip()
-                if dados.telefone.strip() and not usuario_existente.telefone:
-                    usuario_existente.telefone = dados.telefone.strip()
+                if (dados.telefone or "").strip() and not usuario_existente.telefone:
+                    usuario_existente.telefone = (dados.telefone or "").strip()
                 if dados.profilePic and not usuario_existente.profile_pic:
                     usuario_existente.profile_pic = dados.profilePic
                 db.commit()
@@ -525,7 +526,7 @@ async def cadastrar(dados: CadastroRequest, request: Request, db: Session = Depe
                 email=email_lower,
                 nome=dados.nome.strip(),
                 senha_hash=_hash_senha(dados.senha),
-                telefone=dados.telefone.strip(),
+                telefone=(dados.telefone or "").strip(),
                 profile_pic=dados.profilePic,
                 codigo=codigo,
                 expira_em=expira,
@@ -547,7 +548,7 @@ async def cadastrar(dados: CadastroRequest, request: Request, db: Session = Depe
         nome=dados.nome.strip(),
         email=email_lower,
         senha_hash=_hash_senha(dados.senha),
-        telefone=dados.telefone.strip(),
+        telefone=(dados.telefone or "").strip(),
         profile_pic=dados.profilePic,
         verificado=False,
         provedor="local"
@@ -563,7 +564,7 @@ async def cadastrar(dados: CadastroRequest, request: Request, db: Session = Depe
         email=email_lower,
         nome=dados.nome.strip(),
         senha_hash=_hash_senha(dados.senha),
-        telefone=dados.telefone.strip(),
+        telefone=(dados.telefone or "").strip(),
         profile_pic=dados.profilePic,
         codigo=codigo,
         expira_em=expira,
@@ -979,7 +980,7 @@ async def atualizar_perfil(dados: AtualizarPerfilRequest, db: Session = Depends(
         usuario.nome = dados.nome.strip()
 
     if dados.telefone is not None:
-        usuario.telefone = dados.telefone.strip()
+        usuario.telefone = (dados.telefone or "").strip()
 
     # profilePic pode ser None para remover a foto, ou uma string base64 para atualizar
     if "profilePic" in dados.model_fields_set:
